@@ -8,7 +8,7 @@
           <v-container>
             <v-form ref="eventForm">
               <v-text-field
-                v-model="firstName"
+                v-model="eventName"
                 :rules="nameRules"
                 :counter="100"
                 label="Event name"
@@ -27,11 +27,16 @@
                       min-width="290px"
                     >
                       <template v-slot:activator="{ on }">
-                        <v-text-field label="From" readonly :value="startDateVal" v-on="on"></v-text-field>
+                        <v-text-field
+                          label="From"
+                          readonly
+                          :value="startDateFormValue"
+                          v-on="on"
+                        ></v-text-field>
                       </template>
                       <v-date-picker
                         locale="en-in"
-                        v-model="startDateVal"
+                        v-model="startDateFormValue"
                         no-title
                         @input="handlestartDatePick"
                       ></v-date-picker>
@@ -52,17 +57,17 @@
                           label="To"
                           readonly
                           :rules="getEndDateRules"
-                          :value="endDateVal"
+                          :value="endDateFormValue"
                           v-on="on"
                         ></v-text-field>
                       </template>
                       <v-form ref="endDatePicker">
                         <v-date-picker
                           locale="en-in"
-                          v-model="endDateVal"
+                          v-model="endDateFormValue"
                           no-title
                           @input="endDateMenu = false"
-                          :min="startDateVal"
+                          :min="startDateFormValue"
                         ></v-date-picker>
                       </v-form>
                     </v-menu>
@@ -71,65 +76,78 @@
               </v-form>
               <v-row>
                 <v-col v-for="(day, i) in days" :key="i" cols="4">
-                  <v-checkbox v-model="daysSelected" :label="day | dayOfTheWeek" :value="day"></v-checkbox>
+                  <v-checkbox
+                    v-model="daysSelected"
+                    :label="day | shortenedDayOfTheWeek"
+                    :value="day"
+                  ></v-checkbox>
                 </v-col>
               </v-row>
               <v-row>
                 <v-container>
-                  <v-btn color="primary" block @click="handleSubmit">Submit</v-btn>
+                  <v-btn
+                    :loading="isLoading"
+                    color="primary"
+                    block
+                    @click="handleSubmit"
+                    >Submit</v-btn
+                  >
                 </v-container>
               </v-row>
             </v-form>
           </v-container>
         </v-col>
         <v-col cols="12" md="8">
-          <v-container v-for="(data, i) in getCardsData" :key="i">
+          <v-container v-for="(data, i) in generateCardsData" :key="i">
             <v-card>
               <v-card-title>{{ data.header }}</v-card-title>
               <v-divider></v-divider>
               <template v-for="(day, j) in data.days">
-                <div :key="j" class="d-flex" :class="{ 'green lighten-5': day.event }">
+                <div
+                  :key="j"
+                  class="d-flex"
+                  :class="{ 'green lighten-5': day.event }"
+                >
                   <v-card-text class="bg-green">{{ day.display }}</v-card-text>
-                  <v-card-text class="bg-green">{{ day.event ? day.event.name : '' }}</v-card-text>
+                  <v-card-text class="bg-green">{{
+                    day.event ? day.event.name : ''
+                  }}</v-card-text>
                 </div>
                 <v-divider :key="`divider-${j}`"></v-divider>
               </template>
             </v-card>
           </v-container>
         </v-col>
-        {{ calendarEvents }}
       </v-row>
     </v-card>
+    <v-snackbar
+      v-model="showSuccessNotif"
+      color="success"
+      :right="true"
+      :top="true"
+      :timeout="6000"
+    >
+      Successfully saved events!
+      <v-icon @click="showSuccessNotif = false">mdi-close</v-icon>
+    </v-snackbar>
   </v-container>
 </template>
 
 <script lang="ts">
-import Vue from "vue";
-import moment, { Moment } from "moment";
-import { CalendarEvent } from "../models/CalendarEvent";
-import { BackendResponse } from "../models/BackendResponse";
-
-enum DayOfTheWeek {
-  SUNDAY = "sunday",
-  MONDAY = "monday",
-  TUESDAY = "tuesday",
-  WEDNESDAY = "wednesday",
-  THURSDAY = "thursday",
-  FRIDAY = "friday",
-  SATURDAY = "saturday"
-}
-
-/**
- * Different date formats supported by moment
- * HEADER  -- For header display
- * API     -- To date format returned and supported by the API
- * DISPLAY -- For individual date display
- */
-enum DateFormat {
-  HEADER = "MMMM YYYY",
-  API = "YYYY-MM-DD",
-  DISPLAY = "D ddd"
-}
+import Vue from 'vue';
+import moment, { Moment } from 'moment';
+import {
+  DaysOfTheWeek,
+  DateFormat,
+  validateFutureDate,
+  getDaysBetweenDates
+} from '../helpers/DateHelper';
+import {
+  CalendarEvent,
+  CalendarEventApiPayload
+} from '../models/CalendarEvent';
+import { apiFetchEvents, apiCreateEvents } from '../helpers/EventApiHelper';
+import { BackendResponse } from '../models/BackendResponse';
 
 interface CardData {
   header: string;
@@ -138,60 +156,43 @@ interface CardData {
   };
 }
 
-function validateFutureDate(date: Date | string | Moment, basis = moment()) {
-  return moment(date).isSameOrAfter(basis, "day");
-}
-
-function getDaysBetweenDates(
-  startDate: Date | string | Moment,
-  endDate: Date | string | Moment
-): ReadonlyArray<Moment> {
-  const now = moment(startDate).clone();
-  const dates: Moment[] = [];
-  while (now.isSameOrBefore(moment(endDate))) {
-    dates.push(now.clone());
-    now.add(1, "days");
-  }
-  return dates;
-}
-
-const calendarApiUrl = `${process.env.VUE_APP_API_URL}calendar-events`;
-
 export default Vue.extend({
-  name: "Home",
+  name: 'Home',
   mounted() {
     this.fetchEvents();
   },
   data() {
     return {
-      firstName: "",
+      eventName: '',
       nameRules: [
-        v => !!v || "Name is required",
-        v => v.length <= 100 || "Name must be less than 100 characters"
+        v => !!v || 'Name is required',
+        v => v.length <= 100 || 'Name must be less than 100 characters'
       ],
       startDateMenu: false,
-      startDateVal: undefined,
+      startDateFormValue: undefined,
       endDateMenu: false,
-      endDateVal: undefined,
-      days: Object.values(DayOfTheWeek),
-      daysSelected: [] as DayOfTheWeek[],
-      calendarEvents: [] as CalendarEvent[]
+      endDateFormValue: undefined,
+      days: DaysOfTheWeek,
+      daysSelected: [],
+      calendarEvents: [] as CalendarEvent[],
+      isLoading: false,
+      showSuccessNotif: false
     };
   },
   computed: {
     getEndDateRules() {
       return [
         v =>
-          validateFutureDate(v, this.startDateVal) ||
-          "End date must be later than start date"
+          validateFutureDate(v, this.startDateFormValue) ||
+          'End date must be later than start date'
       ];
     },
-    getCardsData(): ReadonlyArray<CardData> {
-      if (!(this.startDateVal && this.endDateVal)) {
+    generateCardsData(): ReadonlyArray<CardData> {
+      if (!(this.startDateFormValue && this.endDateFormValue)) {
         return [];
       }
-      const startDate = moment(this.startDateVal);
-      const endDate = moment(this.endDateVal);
+      const startDate = moment(this.startDateFormValue);
+      const endDate = moment(this.endDateFormValue);
       const cardsData: CardData[] = [];
       let currentMonth = startDate.month();
       let currentCardData: CardData = {
@@ -229,7 +230,7 @@ export default Vue.extend({
   methods: {
     handlestartDatePick() {
       this.startDateMenu = false;
-      if (this.endDateVal) {
+      if (this.endDateFormValue) {
         this.$refs.datePickers.validate();
       }
     },
@@ -237,28 +238,58 @@ export default Vue.extend({
       const isValidEventForm = this.$refs.eventForm.validate();
       const isValidDatePickers = this.$refs.datePickers.validate();
       if (isValidEventForm && isValidDatePickers) {
-        console.log(this.daysSelected);
+        this.createEvents();
       }
     },
     fetchEvents() {
-      fetch(calendarApiUrl)
-        .then(res => res.json())
+      apiFetchEvents().then((res: BackendResponse) => {
+        if (res.status === 'success') {
+          this.calendarEvents = res.data.map(event => ({
+            id: event.id,
+            date: event.date,
+            name: event.name
+          }));
+        } else {
+          // Handle error
+        }
+      });
+    },
+    generatePostEventPayload(): CalendarEventApiPayload {
+      return {
+        payload: getDaysBetweenDates(
+          this.startDateFormValue,
+          this.endDateFormValue
+        )
+          .filter(date => {
+            return this.daysSelected.includes(DaysOfTheWeek[date.day()]);
+          })
+          .map(filteredDate => {
+            return {
+              name: this.eventName,
+              date: filteredDate.format(DateFormat.API)
+            };
+          })
+      };
+    },
+    createEvents() {
+      this.isLoading = true;
+      apiCreateEvents(this.generatePostEventPayload())
         .then((res: BackendResponse) => {
-          if (res.status === "success") {
-            this.calendarEvents = res.data.map(event => ({
-              id: event.id,
-              date: event.date,
-              name: event.name
-            }));
-          }
-        });
+          this.calendarEvents = res.data;
+          this.isLoading = false;
+          this.showSuccessNotif = true;
+        })
+        .catch(err => (this.isLoading = false));
     }
   },
   filters: {
-    dayOfTheWeek: function(value) {
-      if (!value) return "";
-      value = value.toString();
-      return value.charAt(0).toUpperCase() + value.substring(1, 3);
+    shortenedDayOfTheWeek: function(value: any) {
+      if (!value) return '';
+      const stringValue: string = value.toString();
+      return (
+        stringValue.charAt(0).toUpperCase() +
+        stringValue.substring(1, 3).toLowerCase()
+      );
     }
   }
 });

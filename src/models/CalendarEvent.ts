@@ -5,3 +5,10 @@ export interface CalendarEvent {
   name: string;
   date: string;
 }
+
+export interface CalendarEventApiPayload {
+  payload: ReadonlyArray<{
+    date: string;
+    name: string;
+  }>;
+}
