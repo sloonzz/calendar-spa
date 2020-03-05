@@ -27,12 +27,7 @@
                       min-width="290px"
                     >
                       <template v-slot:activator="{ on }">
-                        <v-text-field
-                          label="From"
-                          readonly
-                          :value="startDateFormValue"
-                          v-on="on"
-                        ></v-text-field>
+                        <v-text-field label="From" readonly :value="startDateFormValue" v-on="on"></v-text-field>
                       </template>
                       <v-date-picker
                         locale="en-in"
@@ -85,13 +80,7 @@
               </v-row>
               <v-row>
                 <v-container>
-                  <v-btn
-                    :loading="isLoading"
-                    color="primary"
-                    block
-                    @click="handleSubmit"
-                    >Submit</v-btn
-                  >
+                  <v-btn :loading="isLoading" color="primary" block @click="handleSubmit">Submit</v-btn>
                 </v-container>
               </v-row>
             </v-form>
@@ -103,15 +92,13 @@
               <v-card-title>{{ data.header }}</v-card-title>
               <v-divider></v-divider>
               <template v-for="(day, j) in data.days">
-                <div
-                  :key="j"
-                  class="d-flex"
-                  :class="{ 'green lighten-5': day.event }"
-                >
+                <div :key="j" class="d-flex" :class="{ 'green lighten-5': day.event }">
                   <v-card-text class="bg-green">{{ day.display }}</v-card-text>
-                  <v-card-text class="bg-green">{{
+                  <v-card-text class="bg-green">
+                    {{
                     day.event ? day.event.name : ''
-                  }}</v-card-text>
+                    }}
+                  </v-card-text>
                 </div>
                 <v-divider :key="`divider-${j}`"></v-divider>
               </template>
@@ -130,24 +117,28 @@
       Successfully saved events!
       <v-icon @click="showSuccessNotif = false">mdi-close</v-icon>
     </v-snackbar>
+    <v-snackbar v-model="showErrorNotif" color="error" :right="true" :top="true" :timeout="6000">
+      {{ errorNotifMessage || 'Oops, something went wrong! Try again.' }}
+      <v-icon @click="showErrorNotif = false">mdi-close</v-icon>
+    </v-snackbar>
   </v-container>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import moment, { Moment } from 'moment';
+import Vue from "vue";
+import moment, { Moment } from "moment";
 import {
   DaysOfTheWeek,
   DateFormat,
   validateFutureDate,
   getDaysBetweenDates
-} from '../helpers/DateHelper';
+} from "../helpers/DateHelper";
 import {
   CalendarEvent,
   CalendarEventApiPayload
-} from '../models/CalendarEvent';
-import { apiFetchEvents, apiCreateEvents } from '../helpers/EventApiHelper';
-import { BackendResponse } from '../models/BackendResponse';
+} from "../models/CalendarEvent";
+import { apiFetchEvents, apiCreateEvents } from "../helpers/EventApiHelper";
+import { BackendResponse } from "../models/BackendResponse";
 
 interface CardData {
   header: string;
@@ -157,16 +148,16 @@ interface CardData {
 }
 
 export default Vue.extend({
-  name: 'Home',
+  name: "Home",
   mounted() {
     this.fetchEvents();
   },
   data() {
     return {
-      eventName: '',
+      eventName: "",
       nameRules: [
-        v => !!v || 'Name is required',
-        v => v.length <= 100 || 'Name must be less than 100 characters'
+        v => !!v || "Name is required",
+        v => v.length <= 100 || "Name must be less than 100 characters"
       ],
       startDateMenu: false,
       startDateFormValue: undefined,
@@ -176,7 +167,9 @@ export default Vue.extend({
       daysSelected: [],
       calendarEvents: [] as CalendarEvent[],
       isLoading: false,
-      showSuccessNotif: false
+      showSuccessNotif: false,
+      showErrorNotif: false,
+      errorNotifMessage: ""
     };
   },
   computed: {
@@ -184,7 +177,7 @@ export default Vue.extend({
       return [
         v =>
           validateFutureDate(v, this.startDateFormValue) ||
-          'End date must be later than start date'
+          "End date must be later than start date"
       ];
     },
     generateCardsData(): ReadonlyArray<CardData> {
@@ -241,18 +234,34 @@ export default Vue.extend({
         this.createEvents();
       }
     },
+    handleCloseErrorNotif() {
+      this.showErrorNotif = false;
+      this.errorNotifMessage = "";
+    },
+    handleShowErrorNotif(message = "") {
+      this.errorNotifMessage = message;
+      this.showErrorNotif = true;
+    },
     fetchEvents() {
-      apiFetchEvents().then((res: BackendResponse) => {
-        if (res.status === 'success') {
-          this.calendarEvents = res.data.map(event => ({
-            id: event.id,
-            date: event.date,
-            name: event.name
-          }));
-        } else {
-          // Handle error
-        }
-      });
+      apiFetchEvents()
+        .then((res: BackendResponse) => {
+          if (res.status === "success") {
+            this.calendarEvents = res.data.map(event => ({
+              id: event.id,
+              date: event.date,
+              name: event.name
+            }));
+          } else {
+            this.handleShowErrorNotif(
+              "Something went wrong trying to retrieve events. Please refresh the page."
+            );
+          }
+        })
+        .catch(e =>
+          this.handleShowErrorNotif(
+            "Something went wrong trying to retrieve events. Please refresh the page."
+          )
+        );
     },
     generatePostEventPayload(): CalendarEventApiPayload {
       return {
@@ -275,16 +284,27 @@ export default Vue.extend({
       this.isLoading = true;
       apiCreateEvents(this.generatePostEventPayload())
         .then((res: BackendResponse) => {
-          this.calendarEvents = res.data;
+          if (res.status === "success") {
+            this.calendarEvents = res.data;
+            this.showSuccessNotif = true;
+          } else {
+            this.handleShowErrorNotif(
+              "Something went wrong trying to save events. Please try again."
+            );
+          }
           this.isLoading = false;
-          this.showSuccessNotif = true;
         })
-        .catch(err => (this.isLoading = false));
+        .catch(() => {
+          this.isLoading = false;
+          this.handleShowErrorNotif(
+            "Something went wrong trying to save events. Please try again."
+          );
+        });
     }
   },
   filters: {
     shortenedDayOfTheWeek: function(value: any) {
-      if (!value) return '';
+      if (!value) return "";
       const stringValue: string = value.toString();
       return (
         stringValue.charAt(0).toUpperCase() +
