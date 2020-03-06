@@ -147,10 +147,7 @@
 <script lang="ts">
 import Vue from "vue";
 import Component from "vue-class-component";
-import {
-  CalendarEvent,
-  CalendarEventApiPayload
-} from "../models/calendarEvent";
+import { CalendarEvent, CalendarEventApiPayload } from "@/models/calendarEvent";
 import moment from "moment";
 import { apiFetchEvents, apiCreateEvents } from "@/helpers/eventApiHelper";
 import { BackendResponse } from "@/models/backendResponse";
