@@ -6,7 +6,7 @@
       <v-row>
         <v-col cols="12" md="4">
           <v-container>
-            <v-form ref="eventForm">
+            <v-form ref="eventForm" @submit="handleSubmit" @submit.prevent>
               <v-text-field
                 v-model="eventName"
                 :rules="nameRules"
@@ -14,7 +14,7 @@
                 label="Event name"
                 required
               ></v-text-field>
-              <v-form ref="datePickers">
+              <v-form ref="datePickers" @submit="handleSubmit" @submit.prevent>
                 <v-row>
                   <v-col>
                     <v-menu
@@ -27,7 +27,13 @@
                       min-width="290px"
                     >
                       <template v-slot:activator="{ on }">
-                        <v-text-field label="From" readonly :value="startDateFormValue" v-on="on"></v-text-field>
+                        <v-text-field
+                          label="From"
+                          readonly
+                          :rules="dateRequiredRule"
+                          :value="startDateFormValue"
+                          v-on="on"
+                        ></v-text-field>
                       </template>
                       <v-date-picker
                         locale="en-in"
@@ -51,20 +57,18 @@
                         <v-text-field
                           label="To"
                           readonly
-                          :rules="getEndDateRules"
+                          :rules="[...getEndDateRules, ...dateRequiredRule]"
                           :value="endDateFormValue"
                           v-on="on"
                         ></v-text-field>
                       </template>
-                      <v-form ref="endDatePicker">
-                        <v-date-picker
-                          locale="en-in"
-                          v-model="endDateFormValue"
-                          no-title
-                          @input="endDateMenu = false"
-                          :min="startDateFormValue"
-                        ></v-date-picker>
-                      </v-form>
+                      <v-date-picker
+                        locale="en-in"
+                        v-model="endDateFormValue"
+                        no-title
+                        @input="endDateMenu = false"
+                        :min="startDateFormValue"
+                      ></v-date-picker>
                     </v-menu>
                   </v-col>
                 </v-row>
@@ -73,7 +77,9 @@
                 <v-col v-for="(day, i) in days" :key="i" cols="4">
                   <v-checkbox
                     v-model="daysSelected"
+                    hide-details
                     :label="day | shortenedDayOfTheWeek"
+                    :rules="emptyCheckboxRule"
                     :value="day"
                   ></v-checkbox>
                 </v-col>
@@ -140,6 +146,11 @@ import {
 import { apiFetchEvents, apiCreateEvents } from "../helpers/EventApiHelper";
 import { BackendResponse } from "../models/BackendResponse";
 
+/**
+ * Data to populate the calendar display
+ * `header` -- Displaying the month and year
+ * `days`   -- Object with date strings as indexes for easier matching with dates from the API
+ */
 interface CardData {
   header: string;
   days: {
@@ -158,6 +169,10 @@ export default Vue.extend({
       nameRules: [
         v => !!v || "Name is required",
         v => v.length <= 100 || "Name must be less than 100 characters"
+      ],
+      dateRequiredRule: [v => !!v || "Date is required"],
+      emptyCheckboxRule: [
+        v => v.length > 0 || "One of the checkboxes must be ticked"
       ],
       startDateMenu: false,
       startDateFormValue: undefined,
@@ -180,6 +195,9 @@ export default Vue.extend({
           "End date must be later than start date"
       ];
     },
+    /**
+     * Used in displaying the dates and events in the calendar card
+     */
     generateCardsData(): ReadonlyArray<CardData> {
       if (!(this.startDateFormValue && this.endDateFormValue)) {
         return [];
@@ -303,6 +321,9 @@ export default Vue.extend({
     }
   },
   filters: {
+    /**
+     * Sunday => Sun, Monday => Mon, etc.
+     */
     shortenedDayOfTheWeek: function(value: any) {
       if (!value) return "";
       const stringValue: string = value.toString();
