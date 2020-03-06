@@ -57,7 +57,7 @@
                         <v-text-field
                           label="To"
                           readonly
-                          :rules="[...getEndDateRules, ...dateRequiredRule]"
+                          :rules="[...endDateRules, ...dateRequiredRule]"
                           :value="endDateFormValue"
                           v-on="on"
                         ></v-text-field>
@@ -86,7 +86,13 @@
               </v-row>
               <v-row>
                 <v-container>
-                  <v-btn :loading="isLoading" color="primary" block @click="handleSubmit">Submit</v-btn>
+                  <v-btn
+                    :loading="isLoading"
+                    color="primary"
+                    block
+                    @click="handleSubmit"
+                    >Submit</v-btn
+                  >
                 </v-container>
               </v-row>
             </v-form>
@@ -98,9 +104,15 @@
               <v-card-title>{{ data.header }}</v-card-title>
               <v-divider></v-divider>
               <template v-for="(day, j) in data.days">
-                <div :key="j" class="d-flex" :class="{ 'green lighten-5': day.event }">
+                <div
+                  :key="j"
+                  class="d-flex"
+                  :class="{ 'green lighten-5': day.event }"
+                >
                   <v-card-text class="bg-green">{{ day.display }}</v-card-text>
-                  <v-card-text class="bg-green">{{ day.event ? day.event.name : "" }}</v-card-text>
+                  <v-card-text class="bg-green">
+                    {{ day.event ? day.event.name : "" }}
+                  </v-card-text>
                 </div>
                 <v-divider :key="`divider-${j}`"></v-divider>
               </template>
@@ -119,7 +131,13 @@
       Successfully saved events!
       <v-icon @click="showSuccessNotif = false">mdi-close</v-icon>
     </v-snackbar>
-    <v-snackbar v-model="showErrorNotif" color="error" :right="true" :top="true" :timeout="6000">
+    <v-snackbar
+      v-model="showErrorNotif"
+      color="error"
+      :right="true"
+      :top="true"
+      :timeout="6000"
+    >
       {{ errorNotifMessage || "Oops, something went wrong! Try again." }}
       <v-icon @click="handleCloseErrorNotif">mdi-close</v-icon>
     </v-snackbar>
@@ -128,19 +146,22 @@
 
 <script lang="ts">
 import Vue from "vue";
-import moment, { Moment } from "moment";
-import {
-  DaysOfTheWeek,
-  DateFormat,
-  validateFutureDate,
-  getDaysBetweenDates
-} from "../helpers/DateHelper";
+import Component from "vue-class-component";
 import {
   CalendarEvent,
   CalendarEventApiPayload
-} from "../models/CalendarEvent";
-import { apiFetchEvents, apiCreateEvents } from "../helpers/EventApiHelper";
-import { BackendResponse } from "../models/BackendResponse";
+} from "../models/calendarEvent";
+import moment from "moment";
+import { apiFetchEvents, apiCreateEvents } from "@/helpers/eventApiHelper";
+import { BackendResponse } from "@/models/backendResponse";
+import {
+  validateFutureDate,
+  getDaysBetweenDates,
+  DateFormat,
+  DaysOfTheWeek,
+  Datelike
+} from "@/helpers/dateHelper";
+import { VForm } from "../models/generic";
 
 /**
  * Data to populate the calendar display
@@ -154,173 +175,12 @@ interface CardData {
   };
 }
 
-export default Vue.extend({
-  name: "Home",
-  mounted() {
-    this.fetchEvents();
-  },
-  data() {
-    return {
-      eventName: "",
-      nameRules: [
-        v => !!v || "Name is required",
-        v => v.length <= 100 || "Name must be less than 100 characters"
-      ],
-      dateRequiredRule: [v => !!v || "Date is required"],
-      emptyCheckboxRule: [
-        v => v.length > 0 || "One of the checkboxes must be ticked"
-      ],
-      startDateMenu: false,
-      startDateFormValue: undefined,
-      endDateMenu: false,
-      endDateFormValue: undefined,
-      days: DaysOfTheWeek,
-      daysSelected: [],
-      calendarEvents: [] as CalendarEvent[],
-      isLoading: false,
-      showSuccessNotif: false,
-      showErrorNotif: false,
-      errorNotifMessage: ""
-    };
-  },
-  computed: {
-    getEndDateRules() {
-      return [
-        v =>
-          validateFutureDate(v, this.startDateFormValue) ||
-          "End date must be later than start date"
-      ];
-    },
-    /**
-     * Used in displaying the dates and events in the calendar card
-     */
-    generateCardsData(): ReadonlyArray<CardData> {
-      if (!(this.startDateFormValue && this.endDateFormValue)) {
-        return [];
-      }
-      const startDate = moment(this.startDateFormValue);
-      const endDate = moment(this.endDateFormValue);
-      const cardsData: CardData[] = [];
-      let currentMonth = startDate.month();
-      let currentCardData: CardData = {
-        header: startDate.format(DateFormat.HEADER),
-        days: {}
-      };
-      cardsData.push(currentCardData);
-      getDaysBetweenDates(startDate, endDate).forEach(date => {
-        if (date.month() !== currentMonth) {
-          currentMonth = date.month();
-          currentCardData = {
-            header: date.format(DateFormat.HEADER),
-            days: {}
-          };
-          cardsData.push(currentCardData);
-        }
-        currentCardData.days = {
-          ...currentCardData.days,
-          [date.format(DateFormat.API)]: {
-            event: undefined,
-            display: date.format(DateFormat.DISPLAY)
-          }
-        };
-      });
-      this.calendarEvents.map((event: CalendarEvent) => {
-        cardsData.map(cardData => {
-          if (cardData.days[event.date]) {
-            cardData.days[event.date].event = event;
-          }
-        });
-      });
-      return cardsData;
-    }
-  },
-  methods: {
-    handlestartDatePick() {
-      this.startDateMenu = false;
-      if (this.endDateFormValue) {
-        this.$refs.datePickers.validate();
-      }
-    },
-    handleSubmit() {
-      const isValidEventForm = this.$refs.eventForm.validate();
-      const isValidDatePickers = this.$refs.datePickers.validate();
-      if (isValidEventForm && isValidDatePickers) {
-        this.createEvents();
-      }
-    },
-    handleCloseErrorNotif() {
-      this.showErrorNotif = false;
-      this.errorNotifMessage = "";
-    },
-    handleShowErrorNotif(message = "") {
-      this.errorNotifMessage = message;
-      this.showErrorNotif = true;
-    },
-    fetchEvents() {
-      apiFetchEvents()
-        .then((res: BackendResponse) => {
-          if (res.status === "success") {
-            this.calendarEvents = res.data.map(event => ({
-              id: event.id,
-              date: event.date,
-              name: event.name
-            }));
-          } else {
-            this.handleShowErrorNotif(
-              "Something went wrong trying to retrieve events. Please refresh the page."
-            );
-          }
-        })
-        .catch(e =>
-          this.handleShowErrorNotif(
-            "Something went wrong trying to retrieve events. Please refresh the page."
-          )
-        );
-    },
-    generatePostEventPayload(): CalendarEventApiPayload {
-      return {
-        payload: getDaysBetweenDates(
-          this.startDateFormValue,
-          this.endDateFormValue
-        )
-          .filter(date => {
-            return this.daysSelected.includes(DaysOfTheWeek[date.day()]);
-          })
-          .map(filteredDate => {
-            return {
-              name: this.eventName,
-              date: filteredDate.format(DateFormat.API)
-            };
-          })
-      };
-    },
-    createEvents() {
-      this.isLoading = true;
-      apiCreateEvents(this.generatePostEventPayload())
-        .then((res: BackendResponse) => {
-          if (res.status === "success") {
-            this.calendarEvents = res.data;
-            this.showSuccessNotif = true;
-          } else {
-            this.handleShowErrorNotif(
-              "Something went wrong trying to save events. Please try again."
-            );
-          }
-          this.isLoading = false;
-        })
-        .catch(() => {
-          this.isLoading = false;
-          this.handleShowErrorNotif(
-            "Something went wrong trying to save events. Please try again."
-          );
-        });
-    }
-  },
+@Component({
   filters: {
     /**
      * Sunday => Sun, Monday => Mon, etc.
      */
-    shortenedDayOfTheWeek: function(value: any) {
+    shortenedDayOfTheWeek: function(value: string | undefined) {
       if (!value) return "";
       const stringValue: string = value.toString();
       return (
@@ -329,5 +189,161 @@ export default Vue.extend({
       );
     }
   }
-});
+})
+export default class Home extends Vue {
+  eventName = "";
+  nameRules = [];
+  dateRequiredRule = [];
+  emptyCheckboxRule = [];
+  startDateMenu = false;
+  startDateFormValue: Datelike = "";
+  endDateMenu = false;
+  endDateFormValue: Datelike = "";
+  days = DaysOfTheWeek;
+  daysSelected: string[] = [];
+  calendarEvents: CalendarEvent[] = [];
+  isLoading = false;
+  showSuccessNotif = false;
+  showErrorNotif = false;
+  errorNotifMessage = "";
+
+  get endDateRules() {
+    return [
+      (v: Datelike) =>
+        validateFutureDate(v, this.startDateFormValue) ||
+        "End date must be later than start date"
+    ];
+  }
+
+  get datePickerForm() {
+    return this.$refs.datePickers as VForm;
+  }
+
+  get eventForm() {
+    return this.$refs.eventForm as VForm;
+  }
+  /**
+   * Used in displaying the dates and events in the calendar card
+   */
+  get generateCardsData(): ReadonlyArray<CardData> {
+    if (!(this.startDateFormValue && this.endDateFormValue)) {
+      return [];
+    }
+    const startDate = moment(this.startDateFormValue);
+    const endDate = moment(this.endDateFormValue);
+    const cardsData: CardData[] = [];
+    let currentMonth = startDate.month();
+    let currentCardData: CardData = {
+      header: startDate.format(DateFormat.HEADER),
+      days: {}
+    };
+    cardsData.push(currentCardData);
+    getDaysBetweenDates(startDate, endDate).forEach(date => {
+      if (date.month() !== currentMonth) {
+        currentMonth = date.month();
+        currentCardData = {
+          header: date.format(DateFormat.HEADER),
+          days: {}
+        };
+        cardsData.push(currentCardData);
+      }
+      currentCardData.days = {
+        ...currentCardData.days,
+        [date.format(DateFormat.API)]: {
+          event: undefined,
+          display: date.format(DateFormat.DISPLAY)
+        }
+      };
+    });
+    this.calendarEvents.map((event: CalendarEvent) => {
+      cardsData.map(cardData => {
+        if (cardData.days[event.date]) {
+          cardData.days[event.date].event = event;
+        }
+      });
+    });
+    return cardsData;
+  }
+
+  handlestartDatePick() {
+    this.startDateMenu = false;
+    if (this.endDateFormValue) {
+      this.datePickerForm.validate();
+    }
+  }
+  handleSubmit() {
+    const isValidEventForm = this.eventForm.validate();
+    const isValidDatePickers = this.datePickerForm.validate();
+    if (isValidEventForm && isValidDatePickers) {
+      this.createEvents();
+    }
+  }
+  handleCloseErrorNotif() {
+    this.showErrorNotif = false;
+    this.errorNotifMessage = "";
+  }
+  handleShowErrorNotif(message = "") {
+    this.errorNotifMessage = message;
+    this.showErrorNotif = true;
+  }
+  fetchEvents() {
+    apiFetchEvents()
+      .then((res: BackendResponse) => {
+        if (res.status === "success") {
+          this.calendarEvents = res.data.map(event => ({
+            id: event.id,
+            date: event.date,
+            name: event.name
+          }));
+        } else {
+          this.handleShowErrorNotif(
+            "Something went wrong trying to retrieve events. Please refresh the page."
+          );
+        }
+      })
+      .catch(() =>
+        this.handleShowErrorNotif(
+          "Something went wrong trying to retrieve events. Please refresh the page."
+        )
+      );
+  }
+  generatePostEventPayload(): CalendarEventApiPayload {
+    return {
+      payload: getDaysBetweenDates(
+        this.startDateFormValue,
+        this.endDateFormValue
+      )
+        .filter(date => {
+          return this.daysSelected.includes(DaysOfTheWeek[date.day()]);
+        })
+        .map(filteredDate => {
+          return {
+            name: this.eventName,
+            date: filteredDate.format(DateFormat.API)
+          };
+        })
+    };
+  }
+  createEvents() {
+    this.isLoading = true;
+    apiCreateEvents(this.generatePostEventPayload())
+      .then((res: BackendResponse) => {
+        if (res.status === "success") {
+          this.calendarEvents = [...res.data];
+          this.showSuccessNotif = true;
+        } else {
+          this.handleShowErrorNotif(
+            "Something went wrong trying to save events. Please try again."
+          );
+        }
+        this.isLoading = false;
+      })
+      .catch(() => {
+        this.isLoading = false;
+        this.handleShowErrorNotif(
+          "Something went wrong trying to save events. Please try again."
+        );
+      });
+  }
+}
 </script>

@@ -27,7 +27,7 @@ export enum DateFormat {
   DISPLAY = "D ddd"
 }
 
-export function validateFutureDate(date: Datelike, basis = moment()) {
+export function validateFutureDate(date: Datelike, basis: Datelike = moment()) {
   return moment(date).isSameOrAfter(basis, "day");
 }
 

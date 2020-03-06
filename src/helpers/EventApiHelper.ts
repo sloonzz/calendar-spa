@@ -1,5 +1,5 @@
-import { BackendResponse } from "@/models/BackendResponse";
-import { CalendarEventApiPayload } from "@/models/CalendarEvent";
+import { BackendResponse } from "@/models/backendResponse";
+import { CalendarEventApiPayload } from "@/models/calendarEvent";
 
 const calendarApiUrl = `${process.env.VUE_APP_API_URL}calendar-events`;
 
