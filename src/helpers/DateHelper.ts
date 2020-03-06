@@ -1,13 +1,13 @@
-import moment, { Moment } from 'moment';
+import moment, { Moment } from "moment";
 
 export const DaysOfTheWeek = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday'
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
 ];
 
 /**
@@ -22,13 +22,13 @@ export type Datelike = string | Moment | Date;
  * DISPLAY -- For individual date display
  */
 export enum DateFormat {
-  HEADER = 'MMMM YYYY',
-  API = 'YYYY-MM-DD',
-  DISPLAY = 'D ddd'
+  HEADER = "MMMM YYYY",
+  API = "YYYY-MM-DD",
+  DISPLAY = "D ddd"
 }
 
 export function validateFutureDate(date: Datelike, basis = moment()) {
-  return moment(date).isSameOrAfter(basis, 'day');
+  return moment(date).isSameOrAfter(basis, "day");
 }
 
 export function getDaysBetweenDates(
@@ -39,7 +39,7 @@ export function getDaysBetweenDates(
   const dates: Moment[] = [];
   while (now.isSameOrBefore(moment(endDate))) {
     dates.push(now.clone());
-    now.add(1, 'days');
+    now.add(1, "days");
   }
   return dates;
 }

@@ -100,11 +100,7 @@
               <template v-for="(day, j) in data.days">
                 <div :key="j" class="d-flex" :class="{ 'green lighten-5': day.event }">
                   <v-card-text class="bg-green">{{ day.display }}</v-card-text>
-                  <v-card-text class="bg-green">
-                    {{
-                    day.event ? day.event.name : ''
-                    }}
-                  </v-card-text>
+                  <v-card-text class="bg-green">{{ day.event ? day.event.name : "" }}</v-card-text>
                 </div>
                 <v-divider :key="`divider-${j}`"></v-divider>
               </template>
@@ -124,8 +120,8 @@
       <v-icon @click="showSuccessNotif = false">mdi-close</v-icon>
     </v-snackbar>
     <v-snackbar v-model="showErrorNotif" color="error" :right="true" :top="true" :timeout="6000">
-      {{ errorNotifMessage || 'Oops, something went wrong! Try again.' }}
-      <v-icon @click="showErrorNotif = false">mdi-close</v-icon>
+      {{ errorNotifMessage || "Oops, something went wrong! Try again." }}
+      <v-icon @click="handleCloseErrorNotif">mdi-close</v-icon>
     </v-snackbar>
   </v-container>
 </template>

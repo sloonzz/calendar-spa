@@ -1,5 +1,5 @@
 export interface BackendResponse {
   data: ReadonlyArray<any>;
-  status: 'success' | 'error';
+  status: "success" | "error";
   code: number;
 }
