@@ -158,7 +158,7 @@ import {
   DaysOfTheWeek,
   Datelike
 } from "@/helpers/dateHelper";
-import { VForm } from "../models/generic";
+import { VForm } from "@/models/generic";
 
 /**
  * Data to populate the calendar display
