@@ -11,7 +11,7 @@ const routes: RouteConfig[] = [
     name: "Home",
     component: Home,
     meta: {
-      title: 'Calendar events app'
+      title: 'Calendar Events'
     }
   },
   {
@@ -28,6 +28,11 @@ const router = new VueRouter({
   mode: "history",
   base: process.env.BASE_URL,
   routes
+});
+
+router.beforeEach((to, from, next) => {
+  document.title = to.meta.title;
+  next();
 });
 
 export default router;
