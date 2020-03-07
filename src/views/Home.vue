@@ -147,17 +147,17 @@
 <script lang="ts">
 import Vue from "vue";
 import Component from "vue-class-component";
-import { CalendarEvent, CalendarEventApiPayload } from "@/models/CalendarEvent";
+import { CalendarEvent, CalendarEventApiPayload } from "@/models/calendarEvent";
 import moment from "moment";
-import { apiFetchEvents, apiCreateEvents } from "@/helpers/EventApiHelper";
-import { BackendResponse } from "@/models/BackendResponse";
+import { apiFetchEvents, apiCreateEvents } from "@/helpers/eventApiHelper";
+import { BackendResponse } from "@/models/backendResponse";
 import {
   validateFutureDate,
   getDaysBetweenDates,
   DateFormat,
   DaysOfTheWeek,
   Datelike
-} from "@/helpers/DateHelper";
+} from "@/helpers/dateHelper";
 import { VForm } from "@/models/generic";
 
 /**
